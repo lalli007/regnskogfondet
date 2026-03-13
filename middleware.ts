@@ -1,30 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(req: NextRequest) {
-  const basicAuth = req.headers.get("authorization");
+  const { pathname } = req.nextUrl;
 
-  if (basicAuth) {
-    const [scheme, encoded] = basicAuth.split(" ");
-    if (scheme === "Basic" && encoded) {
-      const decoded = Buffer.from(encoded, "base64").toString("utf-8");
-      const [user, pass] = decoded.split(":");
-      if (
-        user === process.env.SITE_USERNAME &&
-        pass === process.env.SITE_PASSWORD
-      ) {
-        return NextResponse.next();
-      }
-    }
+  // La innloggingssiden og API-ruten passere
+  if (pathname.startsWith("/login") || pathname.startsWith("/api/login")) {
+    return NextResponse.next();
   }
 
-  return new NextResponse("Ikke autorisert", {
-    status: 401,
-    headers: {
-      "WWW-Authenticate": 'Basic realm="Regnskogfondet"',
-    },
-  });
+  // Sjekk auth-cookie
+  const auth = req.cookies.get("rf_auth")?.value;
+  if (auth === process.env.AUTH_SECRET) {
+    return NextResponse.next();
+  }
+
+  // Send til innloggingssiden
+  const loginUrl = req.nextUrl.clone();
+  loginUrl.pathname = "/login";
+  return NextResponse.redirect(loginUrl);
 }
 
 export const config = {
-  matcher: ["/((?!_next|favicon.ico).*)"],
+  matcher: ["/((?!_next|favicon.ico|video).*)"],
 };
